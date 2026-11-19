@@ -258,8 +258,12 @@ ol.steps{padding-left:22px;margin:6px 0}ol.steps li{margin-bottom:6px}
     <label class="f">通知信箱 <small>(多個用逗號分隔)</small></label><input type="text" id="c-emails" placeholder="family@example.com">
     <label class="f">記錄出現紅色警訊時寄信通知</label>
     <div class="chips" data-g="c-alertMail" data-single="1" data-req="1"><button class="chip" data-v="1">開啟</button><button class="chip" data-v="0">關閉</button></div>
-    <label class="f">當天到幾點還沒記錄就寄信提醒</label>
-    <select id="c-missHour"><option value="">不提醒</option><option value="12">中午 12 點</option><option value="18">傍晚 6 點</option><option value="20">晚上 8 點</option><option value="21">晚上 9 點</option></select>
+  </div>
+  <div class="card" id="remCard"><h2>未記錄提醒 <small>每天兩次</small></h2>
+    <p class="mut">過了截止時間還沒有該時段的記錄，會發通知到 Telegram 群組和通知信箱；30 分鐘後仍未記錄會再提醒一次。</p>
+    <div class="chips" data-g="c-missOn" data-single="1" data-req="1"><button class="chip" data-v="1">開啟</button><button class="chip" data-v="0">關閉</button></div>
+    <div class="row"><div><label class="f">早上記錄截止</label><input type="time" id="c-dl1"></div><div><label class="f">晚上記錄截止</label><input type="time" id="c-dl2"></div></div>
+    <p class="mut">只看「早上」「晚上」兩個時段；「不舒服加測」不算在內。</p>
   </div>
   <div class="card" id="pinCard"><h2>開啟密碼 <small>(選填)</small></h2>
     <p class="mut">設定後，新裝置第一次開啟需要輸入。留空代表不設密碼。</p>
@@ -567,7 +571,7 @@ $('btnSum').addEventListener('click',function(){
 /* ---------- 設定 ---------- */
 function fillCfg(){
   var c=S.cfg;$('c-name').value=c.name||'';$('c-phone').value=c.phone||'';$('c-r1').value=c.r1||'08:00';$('c-r2').value=c.r2||'20:00';
-  $('c-emails').value=c.emails||'';$('c-missHour').value=c.missHour==null?'':String(c.missHour);$('c-pin').value=c.pin||'';
+  $('c-emails').value=c.emails||'';$('c-dl1').value=c.dl1||'10:30';$('c-dl2').value=c.dl2||'21:00';setG('c-missOn',c.missOn==='0'?'0':'1');$('remCard').style.display=ON?'block':'none';$('c-pin').value=c.pin||'';
   setG('c-alertMail',c.alertMail==='0'?'0':'1');setG('c-drain',c.drain==='1'?'1':'0');calLinks();
   if(!ON){$('mailCard').style.display='none';$('pinCard').style.display='none'}
   $('apiCard').style.display=LIVE?'none':'block';$('apiOff').style.display=REMOTE?'none':'block';$('apiOn').style.display=REMOTE?'block':'none';
@@ -582,7 +586,7 @@ function calLinks(){
 }
 $('c-r1').addEventListener('change',calLinks);$('c-r2').addEventListener('change',calLinks);
 $('btnCfg').addEventListener('click',function(){
-  var c={name:$('c-name').value.trim(),phone:$('c-phone').value.trim(),r1:$('c-r1').value,r2:$('c-r2').value,emails:$('c-emails').value.trim(),alertMail:getG('c-alertMail')||'1',drain:getG('c-drain')||'0',missHour:$('c-missHour').value,pin:$('c-pin').value.trim()};
+  var c={name:$('c-name').value.trim(),phone:$('c-phone').value.trim(),r1:$('c-r1').value,r2:$('c-r2').value,emails:$('c-emails').value.trim(),alertMail:getG('c-alertMail')||'1',drain:getG('c-drain')||'0',missOn:getG('c-missOn')||'1',dl1:$('c-dl1').value||'10:30',dl2:$('c-dl2').value||'21:00',pin:$('c-pin').value.trim()};
   var b=this;b.disabled=true;
   api('cfg',c,function(res){b.disabled=false;if(!res.ok){toast('儲存失敗：'+(res.err||''));return}S.cfg=res.cfg||c;S.pin=c.pin;ls('hd_pin',c.pin);renderAll();calLinks();toast('設定已儲存')});
 });
