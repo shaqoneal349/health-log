@@ -1,0 +1,636 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>每日健康狀態追蹤</title>
+<meta name="theme-color" content="#0f766e">
+<meta name="robots" content="noindex">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-192.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="健康記錄">
+<style>
+:root{--bg:#f3f6f5;--card:#fff;--ink:#16302b;--mut:#5d716c;--line:#d9e2df;--pri:#0f766e;--pri2:#e3f2ef;--red:#b42318;--redbg:#fdecea;--amb:#9a5b00;--ambbg:#fff4dc;--ok:#1a7f45;--okbg:#e5f6ec}
+*{box-sizing:border-box}
+html,body{margin:0;background:var(--bg);color:var(--ink);font:17px/1.55 -apple-system,"PingFang TC","Noto Sans TC","Microsoft JhengHei",sans-serif;-webkit-text-size-adjust:100%}
+body{padding-bottom:86px}
+header{background:var(--pri);color:#fff;padding:14px 16px 12px;position:sticky;top:0;z-index:5}
+header h1{margin:0;font-size:20px;letter-spacing:.5px}
+header .sub{font-size:14px;opacity:.9;display:flex;justify-content:space-between;gap:8px;margin-top:2px}
+main{max-width:640px;margin:0 auto;padding:12px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:14px;margin-bottom:12px}
+.card h2{font-size:17px;margin:0 0 10px;display:flex;align-items:center;gap:6px}
+.card h2 small{font-weight:400;color:var(--mut);font-size:13px}
+label.f{display:block;font-size:15px;color:var(--mut);margin:10px 0 4px}
+input[type=number],input[type=text],input[type=date],input[type=time],input[type=tel],input[type=email],input[type=password],textarea,select{width:100%;font:inherit;font-size:19px;padding:11px 12px;border:1.5px solid var(--line);border-radius:10px;background:#fff;color:var(--ink);min-height:50px}
+input:focus,textarea:focus{outline:none;border-color:var(--pri)}
+textarea{min-height:76px;font-size:17px}
+.row{display:flex;gap:10px}.row>div{flex:1;min-width:0}
+.unit{position:relative}.unit span{position:absolute;right:12px;top:13px;color:var(--mut);font-size:15px;pointer-events:none}
+.unit input{padding-right:54px}
+.hint{font-size:14px;margin-top:5px;border-radius:8px;padding:6px 9px;display:none}
+.hint.red{display:block;background:var(--redbg);color:var(--red);font-weight:600}
+.hint.amb{display:block;background:var(--ambbg);color:var(--amb)}
+.hint.ok{display:block;background:var(--okbg);color:var(--ok)}
+.chips{display:flex;flex-wrap:wrap;gap:8px}
+.chip{border:1.5px solid var(--line);background:#fff;border-radius:999px;padding:9px 15px;font:inherit;font-size:16px;color:var(--ink);min-height:46px;cursor:pointer}
+.chip.on{background:var(--pri);border-color:var(--pri);color:#fff;font-weight:600}
+.chip.warn.on{background:var(--red);border-color:var(--red)}
+.btn{display:block;width:100%;border:0;border-radius:12px;background:var(--pri);color:#fff;font:inherit;font-size:19px;font-weight:700;padding:15px;cursor:pointer;text-align:center;text-decoration:none}
+.btn.sec{background:var(--pri2);color:var(--pri)}
+.btn.red{background:var(--red)}
+.btn.sm{font-size:16px;padding:10px;font-weight:600}
+.btn:disabled{opacity:.5}
+nav{position:fixed;left:0;right:0;bottom:0;background:#fff;border-top:1px solid var(--line);display:flex;z-index:6;padding-bottom:env(safe-area-inset-bottom)}
+nav button{flex:1;border:0;background:none;font:inherit;font-size:14px;color:var(--mut);padding:9px 2px 10px;cursor:pointer}
+nav button b{display:block;font-size:22px;font-weight:400;line-height:1.2}
+nav button.on{color:var(--pri);font-weight:700}
+.page{display:none}.page.on{display:block}
+.alert{border-radius:12px;padding:12px 14px;margin-bottom:10px;font-size:16px}
+.alert.red{background:var(--redbg);color:var(--red);border:1.5px solid #f3b6ae}
+.alert.amb{background:var(--ambbg);color:var(--amb);border:1.5px solid #f0d28f}
+.alert.ok{background:var(--okbg);color:var(--ok);border:1.5px solid #b5e2c6}
+.alert b{display:block;font-size:17px;margin-bottom:4px}
+.alert ul{margin:4px 0 0;padding-left:20px}
+.stat{display:flex;gap:8px;flex-wrap:wrap}
+.stat div{flex:1;min-width:92px;background:var(--pri2);border-radius:10px;padding:8px 10px}
+.stat div b{display:block;font-size:20px}.stat div span{font-size:13px;color:var(--mut)}
+.hist{border-top:1px solid var(--line);padding:10px 0}
+.hist:first-of-type{border-top:0}
+.hist .hd{display:flex;justify-content:space-between;align-items:center;font-weight:700}
+.hist .bd{font-size:15px;color:var(--mut)}
+.tag{display:inline-block;font-size:13px;border-radius:6px;padding:1px 7px;font-weight:600}
+.tag.red{background:var(--redbg);color:var(--red)}.tag.amb{background:var(--ambbg);color:var(--amb)}.tag.ok{background:var(--okbg);color:var(--ok)}
+.lnk{background:none;border:0;color:var(--pri);font:inherit;font-size:15px;text-decoration:underline;cursor:pointer;padding:4px}
+svg.ch{width:100%;height:120px;display:block}
+.toast{position:fixed;left:50%;bottom:100px;transform:translateX(-50%);background:#16302b;color:#fff;padding:10px 18px;border-radius:999px;font-size:16px;z-index:20;display:none;max-width:90%}
+.modal{position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:30;display:none;align-items:flex-end;justify-content:center}
+.modal.on{display:flex}
+.modal .box{background:#fff;border-radius:16px 16px 0 0;padding:16px;width:100%;max-width:640px;max-height:88vh;overflow:auto}
+.mut{color:var(--mut);font-size:14px}
+.demo{background:#fff4dc;color:#7a4b00;font-size:14px;padding:8px 14px;text-align:center}
+ol.steps{padding-left:22px;margin:6px 0}ol.steps li{margin-bottom:6px}
+</style>
+</head>
+<body>
+<header>
+  <h1>每日健康狀態追蹤</h1>
+  <div class="sub"><span id="hdName"></span><span id="sync">載入中…</span></div>
+</header>
+<div class="demo" id="demoBar" style="display:none">尚未連接 Google Sheet：資料只存在這支裝置。<button class="lnk" id="goConnect">前往連接</button></div>
+
+<main>
+<!-- ===== 記錄 ===== -->
+<section class="page on" id="p-rec">
+  <div id="todayBox"></div>
+  <div class="card">
+    <h2>① 日期與時段</h2>
+    <div class="row">
+      <div><label class="f">日期</label><input type="date" id="date"></div>
+      <div><label class="f">療程第幾天 <small>(選填)</small></label><input type="number" inputmode="numeric" id="day" placeholder="例：3"></div>
+    </div>
+    <label class="f">紀錄人 <small>(選填，會記住)</small></label><input type="text" id="who" maxlength="20" placeholder="本人／家屬">
+    <label class="f">時段</label>
+    <div class="chips" data-g="slot" data-single="1" data-req="1">
+      <button class="chip" data-v="早上">早上</button><button class="chip" data-v="晚上">晚上</button><button class="chip" data-v="加測">不舒服加測</button>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>② 量測數值 <small>沒量的可留空</small></h2>
+    <label class="f">體溫</label>
+    <div class="unit"><input type="number" inputmode="decimal" step="0.1" id="temp" placeholder="36.5"><span>°C</span></div>
+    <div class="hint" id="h-temp"></div>
+    <div class="row">
+      <div><label class="f">收縮壓 (高)</label><div class="unit"><input type="number" inputmode="numeric" id="sys" placeholder="120"><span>mmHg</span></div></div>
+      <div><label class="f">舒張壓 (低)</label><div class="unit"><input type="number" inputmode="numeric" id="dia" placeholder="80"><span>mmHg</span></div></div>
+    </div>
+    <div class="hint" id="h-bp"></div>
+    <div class="row">
+      <div><label class="f">心跳</label><div class="unit"><input type="number" inputmode="numeric" id="hr" placeholder="75"><span>下/分</span></div></div>
+      <div><label class="f">血氧</label><div class="unit"><input type="number" inputmode="numeric" id="spo2" placeholder="97"><span>%</span></div></div>
+    </div>
+    <div class="hint" id="h-hr"></div><div class="hint" id="h-spo2"></div>
+    <div class="row">
+      <div><label class="f">體重</label><div class="unit"><input type="number" inputmode="decimal" step="0.1" id="wt" placeholder="早上空腹量"><span>kg</span></div></div>
+      <div><label class="f">今日飲水量</label><div class="unit"><input type="number" inputmode="numeric" id="water" placeholder="0"><span>mL</span></div></div>
+    </div>
+    <div class="hint" id="h-wt"></div>
+    <div class="chips" style="margin-top:8px">
+      <button class="chip" data-add="250">＋250 mL</button><button class="chip" data-add="500">＋500 mL</button>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>③ 飲食與排泄</h2>
+    <label class="f">食量</label>
+    <div class="chips" data-g="food" data-single="1"><button class="chip" data-v="正常">正常</button><button class="chip" data-v="約一半">約一半</button><button class="chip warn" data-v="很少">很少</button><button class="chip warn" data-v="幾乎無法進食">幾乎無法進食</button></div>
+    <label class="f">排尿</label>
+    <div class="chips" data-g="urine" data-single="1"><button class="chip" data-v="正常">正常</button><button class="chip warn" data-v="明顯減少">明顯減少</button><button class="chip warn" data-v="12–18小時未排尿">12–18 小時沒尿</button><button class="chip warn" data-v="超過18小時未排尿">超過 18 小時沒尿</button></div>
+    <label class="f">尿色</label>
+    <div class="chips" data-g="ucolor" data-single="1"><button class="chip" data-v="淡黃">淡黃</button><button class="chip" data-v="深黃">深黃</button><button class="chip warn" data-v="茶色">茶色</button><button class="chip warn" data-v="紅色或血尿">紅色／血尿</button></div>
+    <label class="f">大便 <small>(可複選)</small></label>
+    <div class="chips" data-g="stool"><button class="chip" data-v="正常">正常</button><button class="chip" data-v="腹瀉">腹瀉</button><button class="chip" data-v="便秘">便秘</button><button class="chip" data-v="未解">今天未解</button><button class="chip warn" data-v="淡色或灰白">淡色或灰白</button><button class="chip warn" data-v="黑便或帶血">黑便或帶血</button></div>
+    <label class="f">24 小時內水便次數 <small>(有腹瀉才填)</small></label>
+    <div class="unit"><input type="number" inputmode="numeric" id="stoolN" placeholder="0"><span>次</span></div>
+  </div>
+
+  <div class="card">
+    <h2>④ 症狀觀察</h2>
+    <label class="f">皮膚／眼白變黃（黃疸）</label>
+    <div class="chips" data-g="jaundice" data-single="1"><button class="chip" data-v="無">無</button><button class="chip" data-v="有但無變化">有，無變化</button><button class="chip" data-v="改善">改善</button><button class="chip warn" data-v="加深">加深</button></div>
+    <div id="drainBox" style="display:none"><label class="f">體外引流管狀況</label>
+    <div class="chips" data-g="drain" data-single="1"><button class="chip" data-v="正常">正常</button><button class="chip warn" data-v="突然變少或停止">突然變少／停止</button><button class="chip warn" data-v="漏液或滲液">漏液／滲液</button><button class="chip warn" data-v="滑脫或破損">滑脫／破損</button></div></div>
+    <label class="f">疼痛</label>
+    <div class="chips" data-g="pain" data-single="1"><button class="chip" data-v="無">無</button><button class="chip" data-v="有">有</button></div>
+    <div id="painMore" style="display:none">
+      <div class="row">
+        <div><label class="f">程度 0–10 <small>(10 最痛)</small></label><input type="number" inputmode="numeric" min="0" max="10" id="painScore" placeholder="0–10"></div>
+      </div>
+      <label class="f">位置</label>
+      <div class="chips" data-g="painLoc" data-single="1"><button class="chip warn" data-v="右上腹">右上腹</button><button class="chip" data-v="上腹部">上腹部</button><button class="chip" data-v="其他位置">其他位置</button></div>
+    </div>
+    <label class="f">其他症狀 <small>(有的才點，可複選)</small></label>
+    <div class="chips" data-g="sym">
+      <button class="chip warn" data-v="畏寒發抖">畏寒發抖</button><button class="chip warn" data-v="呼吸困難或胸痛">呼吸困難／胸痛</button><button class="chip warn" data-v="意識混亂或異常嗜睡">意識混亂／異常嗜睡</button><button class="chip warn" data-v="昏厥或站不穩">昏厥／站不穩</button><button class="chip warn" data-v="持續嘔吐或喝不下水">持續嘔吐／喝不下水</button><button class="chip warn" data-v="腹痛新出現或加劇">腹痛新出現／加劇</button><button class="chip warn" data-v="不明原因出血">不明原因出血</button><button class="chip" data-v="皮膚搔癢加重">皮膚搔癢加重</button><button class="chip" data-v="噁心">噁心</button><button class="chip" data-v="頭暈">頭暈</button><button class="chip" data-v="突然很虛弱">突然很虛弱</button><button class="chip" data-v="口腔破洞">口腔破洞</button><button class="chip" data-v="手腳麻">手腳麻</button><button class="chip" data-v="睡不好">睡不好</button>
+    </div>
+    <label class="f">今天精神體力</label>
+    <div class="chips" data-g="mood" data-single="1"><button class="chip" data-v="好">好</button><button class="chip" data-v="普通">普通</button><button class="chip" data-v="累">累</button><button class="chip" data-v="很差">很差</button></div>
+    <label class="f">今天的藥</label>
+    <div class="chips" data-g="med" data-single="1"><button class="chip" data-v="已按時服用">已按時服用</button><button class="chip" data-v="有漏服">有漏服</button><button class="chip" data-v="無需服藥">無需服藥</button></div>
+    <label class="f">備註 <small>(想問醫師的事也可以寫這裡)</small></label>
+    <textarea id="note" placeholder="例：下午吃完飯後有點脹"></textarea>
+  </div>
+
+  <div id="liveAlert"></div>
+  <button class="btn" id="btnSave">儲存今日記錄</button>
+  <p class="mut" style="text-align:center">同一天同一時段再次儲存會更新原本那筆</p>
+</section>
+
+<!-- ===== 趨勢 ===== -->
+<section class="page" id="p-trend">
+  <div class="card"><h2>近期概況</h2><div class="stat" id="stats"></div></div>
+  <div class="card"><h2>趨勢圖 <small>近 14 筆</small></h2><div id="charts"></div></div>
+  <div class="card">
+    <h2>回診／給家人的摘要</h2>
+    <p class="mut">把近 7 天記錄整理成文字，可貼到 LINE 或回診時給醫師看。</p>
+    <button class="btn sec sm" id="btnSum">產生近 7 天摘要</button>
+  </div>
+  <div class="card"><h2>歷史記錄</h2><div id="hist"></div></div>
+</section>
+
+<!-- ===== 警訊 ===== -->
+<section class="page" id="p-warn">
+  <div class="alert red"><b>出現以下任一情況，請立即聯絡醫療團隊或到急診，不要等到隔天</b>
+    <ul>
+      <li>體溫達 38°C 或以上——不要先自行吃退燒藥壓下來再觀察</li>
+      <li>發冷、劇烈寒顫，即使當下沒有發燒</li>
+      <li>發燒或寒顫，合併右上腹痛、腹痛加劇或黃疸加深</li>
+      <li>呼吸困難、胸痛，或血氧 92% 以下</li>
+      <li>收縮壓 90 以下、休息時心跳 130 以上、昏厥或站不穩</li>
+      <li>意識不清、異常嗜睡、突然非常虛弱</li>
+      <li>持續嘔吐、喝不下水，或超過 18 小時沒有排尿</li>
+      <li>黑便、血便，或出血止不住</li>
+      <li>體外引流管滑脫、破損，或引流突然變少／停止（不要自行推回或沖洗）</li>
+    </ul>
+  </div>
+  <div class="alert amb"><b>以下情況請當日聯絡醫療團隊</b>
+    <ul>
+      <li>皮膚或眼白變得更黃、尿液呈茶色、糞便變灰白</li>
+      <li>12–18 小時沒有排尿，或尿量明顯減少</li>
+      <li>24 小時內水便 4 次以上</li>
+      <li>疼痛達 7 分以上，或腹痛新出現、加劇</li>
+      <li>幾乎吃不下，或一週內體重掉 1.5 公斤以上</li>
+      <li>皮膚搔癢突然明顯加重、血尿或不明原因出血</li>
+    </ul>
+  </div>
+  <a class="btn red" id="callBtn" target="_top" style="display:none;margin-bottom:8px"></a>
+  <a class="btn sec" target="_top" href="tel:119" style="margin-bottom:12px;color:#b42318">危急狀況：撥打 119</a>
+  <div class="card"><h2>血氧參考</h2>
+    <div class="hist"><div class="hd">95–100%<span class="tag ok">一般常見範圍</span></div></div>
+    <div class="hist"><div class="hd">93–94%<span class="tag amb">休息後重測</span></div><div class="bd">觀察是否持續偏低</div></div>
+    <div class="hist"><div class="hd">92% 或以下<span class="tag red">立即就醫</span></div><div class="bd">有喘、胸痛時，即使數字正常也要立即評估</div></div>
+    <p class="mut">量測前先坐著休息 5 分鐘，手指溫暖、不塗指甲油，數字穩定後再記。</p>
+  </div>
+  <div class="card"><h2>量測小提醒</h2>
+    <ol class="steps">
+      <li>固定時間量：早上起床、上完廁所後，比較容易看出變化。</li>
+      <li>體重固定用同一台秤、穿差不多的衣服。</li>
+      <li>不舒服時隨時「加測」，不用等固定時間。</li>
+      <li>體溫 37.5–37.9°C：一小時後再量一次。</li>
+    </ol>
+    <p class="mut">以上為一般成人居家參考值，沒填的項目不代表正常。若醫療團隊有給不同的標準（例如原本就有肺部或心臟疾病），請以醫療團隊的指示為準。本工具只協助記錄與提醒，不能取代醫療判斷。</p>
+  </div>
+</section>
+
+<!-- ===== 設定 ===== -->
+<section class="page" id="p-set">
+  <div class="card" id="apiCard"><h2>雲端連線 <small>Google Sheet</small></h2>
+    <div id="apiOff">
+      <p class="mut">貼上 Apps Script 部署後的網址（結尾是 /exec），記錄就會存到 Google Sheet，家人的手機也能看到同一份資料。</p>
+      <input type="text" id="c-api" inputmode="url" autocapitalize="off" autocomplete="off" placeholder="https://script.google.com/macros/s/…/exec">
+      <div style="height:8px"></div>
+      <button class="btn sm" id="btnApi">連接</button>
+    </div>
+    <div id="apiOn" style="display:none">
+      <div class="alert ok" style="margin-bottom:8px"><b>已連接 Google Sheet</b>記錄會自動同步；沒有網路時先存在手機，連上後補傳。</div>
+      <button class="btn sec sm" id="btnShare">複製給家人的安裝連結</button>
+      <p class="mut">家人用這個連結開啟後就會自動連到同一份資料。連結等同鑰匙，只傳給要一起記錄的人。</p>
+      <button class="lnk" id="btnUnlink">中斷連線</button>
+    </div>
+  </div>
+  <div class="card"><h2>基本資料</h2>
+    <label class="f">稱呼 <small>(顯示在畫面上方，可不填真名)</small></label><input type="text" id="c-name" placeholder="例：爸爸">
+    <label class="f">醫療團隊／個管師電話</label><input type="tel" id="c-phone" placeholder="出現警訊時一鍵撥打">
+    <p class="mut">建議先問清楚：白天聯絡窗口、夜間緊急電話、哪些狀況直接去急診。</p>
+    <label class="f">有體外引流管</label>
+    <div class="chips" data-g="c-drain" data-single="1" data-req="1"><button class="chip" data-v="1">有</button><button class="chip" data-v="0">沒有</button></div>
+  </div>
+  <div class="card"><h2>每日提醒時間</h2>
+    <p class="mut">設定時間後，點「加到手機行事曆」，手機就會每天在這個時間跳出通知。</p>
+    <div class="row"><div><label class="f">早上</label><input type="time" id="c-r1"></div><div><label class="f">晚上</label><input type="time" id="c-r2"></div></div>
+    <div id="calLinks" style="margin-top:10px"></div>
+    <p class="mut">也可以同時用手機內建「時鐘」App 設每日鬧鐘，聲音提醒最明顯。</p>
+  </div>
+  <div class="card" id="mailCard"><h2>家人通知 <small>Email</small></h2>
+    <label class="f">通知信箱 <small>(多個用逗號分隔)</small></label><input type="text" id="c-emails" placeholder="family@example.com">
+    <label class="f">記錄出現紅色警訊時寄信通知</label>
+    <div class="chips" data-g="c-alertMail" data-single="1" data-req="1"><button class="chip" data-v="1">開啟</button><button class="chip" data-v="0">關閉</button></div>
+    <label class="f">當天到幾點還沒記錄就寄信提醒</label>
+    <select id="c-missHour"><option value="">不提醒</option><option value="12">中午 12 點</option><option value="18">傍晚 6 點</option><option value="20">晚上 8 點</option><option value="21">晚上 9 點</option></select>
+  </div>
+  <div class="card" id="pinCard"><h2>開啟密碼 <small>(選填)</small></h2>
+    <p class="mut">設定後，新裝置第一次開啟需要輸入。留空代表不設密碼。</p>
+    <input type="password" inputmode="numeric" id="c-pin" placeholder="4–8 位數字">
+  </div>
+  <button class="btn" id="btnCfg">儲存設定</button>
+  <div class="card" style="margin-top:12px"><h2>加到手機主畫面</h2>
+    <ol class="steps">
+      <li><b>Android (Chrome)</b>：右上角「⋮」→「加到主畫面」。</li>
+      <li><b>iPhone (Safari)</b>：下方「分享」→「加入主畫面」。</li>
+    </ol>
+    <p class="mut">之後點桌面圖示就能直接開啟，像一般 App 一樣。</p>
+    <a class="btn sec sm" id="sheetLink" target="_blank" style="display:none">開啟 Google Sheet 記錄表</a>
+  </div>
+</section>
+</main>
+
+<nav>
+  <button data-p="rec" class="on"><b>✎</b>記錄</button>
+  <button data-p="trend"><b>📈</b>趨勢</button>
+  <button data-p="warn"><b>⚠</b>警訊須知</button>
+  <button data-p="set"><b>⚙</b>設定</button>
+</nav>
+<div class="toast" id="toast"></div>
+<div class="modal" id="modal"><div class="box" id="modalBox"></div></div>
+
+<script>
+(function(){
+'use strict';
+var NUMS=['day','temp','sys','dia','hr','spo2','wt','water','stoolN','painScore'];
+var TXT=['who','day','temp','sys','dia','hr','spo2','wt','water','stoolN','painScore','note'];
+var GRP=['food','urine','ucolor','stool','jaundice','drain','pain','painLoc','sym','mood','med'];
+var S={recs:[],cfg:{},url:'',sheet:'',pin:''};
+var LIVE=(typeof google!=='undefined'&&google.script&&google.script.run);
+var $=function(id){return document.getElementById(id)};
+function ls(k,v){try{if(v===undefined)return localStorage.getItem(k);localStorage.setItem(k,v)}catch(e){return null}}
+/* 安裝版：連線網址存在這支裝置，或由「#api=」連結帶入 */
+var API_RE=/^https:\/\/script\.google\.com\/macros\/s\/[\w-]+\/exec$/;
+var API='';
+if(!LIVE){
+  (function(){
+    var m=/[#&]api=([^&]+)/.exec(location.hash||'');if(!m)return;
+    var u='';try{u=decodeURIComponent(m[1])}catch(e){}
+    try{history.replaceState(null,'',location.pathname+location.search)}catch(e){}
+    if(!API_RE.test(u))return;
+    var cur=ls('hd_api')||'';
+    if(cur&&cur!==u&&!confirm('這個連結會把 App 改連到另一份記錄表，確定要更換嗎？'))return;
+    if(cur!==u){ls('hd_api',u);ls('hd_cache','');ls('hd_pin','')}
+  })();
+  API=ls('hd_api')||'';if(!API_RE.test(API))API='';
+}
+var REMOTE=!LIVE&&!!API,ON=LIVE||REMOTE;
+function pad(n){return(n<10?'0':'')+n}
+function today(){var d=new Date();return d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate())}
+function nowHM(){var d=new Date();return pad(d.getHours())+':'+pad(d.getMinutes())}
+function esc(s){return String(s==null?'':s).replace(/[&<>"]/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]})}
+function num(v){if(v===''||v==null)return null;var n=parseFloat(v);return isNaN(n)?null:n}
+function toast(t){var e=$('toast');e.textContent=t;e.style.display='block';clearTimeout(toast.t);toast.t=setTimeout(function(){e.style.display='none'},2600)}
+function modal(html){$('modalBox').innerHTML=html;$('modal').classList.add('on')}
+function closeModal(){$('modal').classList.remove('on')}
+$('modal').addEventListener('click',function(e){if(e.target===this||e.target.hasAttribute('data-close'))closeModal()});
+
+/* ---------- 後端：Google Apps Script 或 預覽模式(本機) ---------- */
+function api(action,payload,cb){
+  if(LIVE){
+    google.script.run.withSuccessHandler(function(r){cb(JSON.parse(r))})
+      .withFailureHandler(function(e){cb({ok:false,err:String(e&&e.message||e)})})
+      .api(action,JSON.stringify(payload||{}),S.pin||'');
+    return;
+  }
+  if(REMOTE){
+    fetch(API,{method:'POST',redirect:'follow',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify({action:action,payload:payload||{},pin:S.pin||''})})
+      .then(function(r){return r.json()})
+      .then(function(j){if(j&&j.ok)ls('hd_cache',JSON.stringify({recs:j.recs,cfg:j.cfg,sheet:j.sheet}));return j||{ok:false,err:'回應格式錯誤'}},
+            function(e){return{ok:false,err:'NET',msg:String(e&&e.message||e)}})
+      .then(cb);
+    return;
+  }
+  var db;try{db=JSON.parse(ls('hd_demo')||'{}')}catch(e){db={}}
+  db.recs=db.recs||[];db.cfg=db.cfg||{};
+  if(action==='save'){var i=-1;db.recs.forEach(function(r,k){if(r.id===payload.id)i=k});if(i>=0)db.recs[i]=payload;else db.recs.push(payload)}
+  if(action==='del'){db.recs=db.recs.filter(function(r){return r.id!==payload.id})}
+  if(action==='cfg'){db.cfg=payload}
+  ls('hd_demo',JSON.stringify(db));
+  setTimeout(function(){cb({ok:true,recs:db.recs,cfg:db.cfg,url:location.href.split('#')[0],sheet:''})},60);
+}
+function setSync(t){$('sync').textContent=t}
+
+/* ---------- chips ---------- */
+function grp(g){return document.querySelector('[data-g="'+g+'"]')}
+function getG(g){var a=[];grp(g).querySelectorAll('.chip.on').forEach(function(c){a.push(c.getAttribute('data-v'))});return a.join('、')}
+function setG(g,v){var a=String(v==null?'':v).split('、');grp(g).querySelectorAll('.chip').forEach(function(c){c.classList.toggle('on',a.indexOf(c.getAttribute('data-v'))>=0)})}
+document.addEventListener('click',function(e){
+  var c=e.target.closest?e.target.closest('.chip'):null;if(!c)return;
+  if(c.hasAttribute('data-add')){var w=$('water');w.value=(num(w.value)||0)+parseInt(c.getAttribute('data-add'),10);live();return}
+  var box=c.parentNode;if(!box.hasAttribute('data-g'))return;
+  if(box.hasAttribute('data-single')){var was=c.classList.contains('on');box.querySelectorAll('.chip').forEach(function(x){x.classList.remove('on')});if(!was||box.hasAttribute('data-req'))c.classList.add('on')}
+  else{
+    c.classList.toggle('on');
+    if(box.getAttribute('data-g')==='stool'&&c.classList.contains('on')){var v=c.getAttribute('data-v');box.querySelectorAll('.chip').forEach(function(x){var xv=x.getAttribute('data-v');if(x!==c&&(v==='正常'||v==='未解'||xv==='正常'||xv==='未解'))x.classList.remove('on')})}
+  }
+  var g=box.getAttribute('data-g');
+  if(g==='pain')$('painMore').style.display=getG('pain')==='有'?'block':'none';
+  if(g==='slot')loadSlot();
+  live();
+});
+
+/* ---------- 警訊判讀 ---------- */
+function has(s,k){return String(s||'').indexOf(k)>=0}
+function evaluate(r){
+  var red=[],amb=[];var t=num(r.temp),o=num(r.spo2),sy=num(r.sys),di=num(r.dia),h=num(r.hr),w=num(r.wt),sn=num(r.stoolN),ps=num(r.painScore);
+  var chill=has(r.sym,'畏寒發抖'),fever=t!=null&&t>=38;
+  if(fever)red.push('體溫 '+t+'°C（達 38°C）：請立即聯絡醫療團隊，聯絡不上請到急診；不要先自行吃退燒藥再觀察');
+  else if(t!=null&&t>=37.5)amb.push('體溫 '+t+'°C 偏高：一小時後再量一次，持續上升或不舒服請聯絡醫療團隊');
+  else if(t!=null&&t<36)amb.push('體溫 '+t+'°C 偏低：請重測；若合併虛弱、畏寒請儘快就醫評估');
+  if(chill)red.push('畏寒發抖：可能是感染，即使體溫未達 38°C 也請立即聯絡醫療團隊');
+  if((fever||chill)&&(r.painLoc==='右上腹'||has(r.sym,'腹痛新出現')||r.jaundice==='加深'))red.push('發燒或寒顫合併右上腹痛、腹痛加劇或黃疸加深：要警覺膽道感染，請立即到急診');
+  if(o!=null&&o<=92)red.push('血氧 '+o+'%（92% 以下）：請立即就醫');
+  else if(o!=null&&o<=94)amb.push('血氧 '+o+'%：休息、手指保暖後重測，持續偏低請當日聯絡醫療團隊');
+  if(has(r.sym,'呼吸困難'))red.push('呼吸困難或胸痛：請立即到急診，嚴重時撥打 119');
+  if(has(r.sym,'意識混亂'))red.push('意識混亂或異常嗜睡：請立即到急診');
+  if(has(r.sym,'昏厥'))red.push('昏厥或明顯站不穩：請立即到急診');
+  if(sy!=null&&sy<=90)red.push('收縮壓 '+sy+'（90 以下）：請立即就醫');
+  else if(sy!=null&&sy<=100)amb.push('收縮壓 '+sy+' 偏低：請重測，持續偏低或頭暈請儘快聯絡醫療團隊');
+  else if(sy!=null&&sy>=180)amb.push('收縮壓 '+sy+' 偏高：安靜休息後重測，仍偏高請聯絡醫療團隊');
+  if(di!=null&&di>=120)amb.push('舒張壓 '+di+' 偏高：休息後重測，仍偏高請聯絡醫療團隊');
+  if(h!=null&&h>=130)red.push('休息時心跳 '+h+' 下/分（130 以上）：請立即就醫評估');
+  else if(h!=null&&h>=110)amb.push('休息時心跳 '+h+' 下/分偏快：持續偏快或不舒服請當日聯絡醫療團隊');
+  else if(h!=null&&h<50)amb.push('心跳 '+h+' 下/分偏慢：若不是平常的數值或有頭暈、胸悶，請聯絡醫療團隊');
+  if(r.urine==='超過18小時未排尿')red.push('超過 18 小時沒有排尿：可能嚴重脫水，請立即就醫');
+  else if(r.urine==='12–18小時未排尿')amb.push('12–18 小時沒有排尿：請立即聯絡醫療團隊');
+  else if(r.urine==='明顯減少')amb.push('尿量明顯減少：留意水分攝取，持續減少請聯絡醫療團隊');
+  if(r.ucolor==='茶色')amb.push('尿液呈茶色：可能與膽汁排出不順或脫水有關，請當日聯絡醫療團隊');
+  if(r.ucolor==='紅色或血尿')amb.push('紅色尿或血尿：請儘快聯絡醫療團隊');
+  if(r.jaundice==='加深')amb.push('黃疸加深：請當日聯絡醫療團隊');
+  if(has(r.stool,'灰白'))amb.push('糞便淡色或灰白：請當日聯絡醫療團隊');
+  if(has(r.stool,'黑便'))red.push('黑便或帶血：請立即聯絡醫療團隊；量多或頭暈請到急診');
+  if(sn!=null&&sn>=4)amb.push('24 小時內水便 '+sn+' 次：請當日聯絡醫療團隊並注意補充水分');
+  if(r.drain==='滑脫或破損')red.push('引流管滑脫或破損：請立即聯絡醫療團隊或到急診，不要自行推回');
+  if(r.drain==='突然變少或停止'||r.drain==='漏液或滲液')red.push('引流'+(r.drain==='漏液或滲液'?'管漏液或滲液':'量突然變少或停止')+'：請立即聯絡醫療團隊，不要自行沖洗或調整管路');
+  if(has(r.sym,'持續嘔吐'))red.push('持續嘔吐或喝不下水：有脫水風險，請立即聯絡醫療團隊');
+  if(has(r.sym,'不明原因出血'))amb.push('不明原因出血：請聯絡醫療團隊；出血不止請到急診');
+  if(ps!=null&&ps>=7)amb.push('疼痛 '+ps+' 分：請聯絡醫療團隊評估；突然劇痛請到急診');
+  else if(has(r.sym,'腹痛新出現'))amb.push('腹痛新出現或加劇：請儘快聯絡醫療團隊');
+  if(r.food==='幾乎無法進食')amb.push('幾乎無法進食：請儘快和醫療團隊討論營養與脫水風險');
+  else if(r.food==='很少')amb.push('食量很少：若連續兩天以上，請告知醫療團隊或營養師');
+  if(has(r.sym,'皮膚搔癢加重'))amb.push('皮膚搔癢加重：若合併黃疸、茶色尿或灰白便，請當日聯絡醫療團隊');
+  if(has(r.sym,'頭暈'))amb.push('頭暈：起身放慢，注意防跌');
+  if(w!=null){var base=wtBase(r.date,r.id);if(base&&(base.wt-w>=1.5||(base.wt-w)/base.wt>=0.02))amb.push('體重比 '+base.date.slice(5)+' 少了 '+(base.wt-w).toFixed(1)+' kg：請告知醫療團隊或營養師')}
+  return{level:red.length?'red':(amb.length?'amb':'ok'),red:red,amb:amb};
+}
+function wtBase(date,id){ // 7 天內最早一筆有體重的記錄
+  var lim=new Date(date+'T00:00:00');lim.setDate(lim.getDate()-7);var best=null;
+  S.recs.forEach(function(x){var xw=num(x.wt);if(xw==null||x.id===id||x.date>=date)return;if(new Date(x.date+'T00:00:00')<lim)return;if(!best||x.date<best.date)best={date:x.date,wt:xw}});
+  return best;
+}
+function alertHtml(ev){
+  var h='';
+  if(ev.red.length)h+='<div class="alert red"><b>⚠ 需要立即處理</b><ul><li>'+ev.red.map(esc).join('</li><li>')+'</li></ul></div>'+callHtml();
+  if(ev.amb.length)h+='<div class="alert amb"><b>請留意，必要時當日聯絡醫療團隊</b><ul><li>'+ev.amb.map(esc).join('</li><li>')+'</li></ul></div>';
+  return h;
+}
+function callHtml(){var p=(S.cfg.phone||'').replace(/[^0-9+#*]/g,'');return p?'<a class="btn red" target="_top" style="margin-bottom:10px" href="tel:'+p+'">撥打醫療團隊 '+esc(S.cfg.phone)+'</a>':''}
+
+/* ---------- 表單 ---------- */
+function readForm(){
+  var r={};var slot=getG('slot')||'早上';r.date=$('date').value||today();r.slot=slot;
+  r.id=formId||(r.date+'_'+slot+(slot==='加測'?'_'+nowHM().replace(':',''):''));
+  r.ts=today()+' '+nowHM();
+  TXT.forEach(function(k){r[k]=$(k).value.trim()});
+  GRP.forEach(function(k){r[k]=getG(k)});
+  if(r.pain!=='有'){r.painLoc='';r.painScore=''}
+  if(S.cfg.drain!=='1')r.drain='';
+  return r;
+}
+var formId='';
+function fillForm(r){
+  TXT.forEach(function(k){$(k).value=r&&r[k]!=null?r[k]:''});
+  GRP.forEach(function(k){setG(k,r?r[k]:'')});
+  if(!r)$('who').value=ls('hd_who')||'';
+  $('painMore').style.display=(r&&r.pain==='有')?'block':'none';
+  formId=r?r.id:'';
+  $('btnSave').textContent=r?'更新這筆記錄':'儲存今日記錄';
+  live();
+}
+function loadSlot(){
+  var d=$('date').value,s=getG('slot');var f=null;
+  if(s!=='加測')S.recs.forEach(function(x){if(x.date===d&&x.slot===s)f=x});
+  fillForm(f);
+  if(!f){ // 帶入方便值：同日已記的飲水量、昨天的療程天數+1
+    var last=null;S.recs.forEach(function(x){if(x.date===d&&num(x.water)!=null)last=x});
+    if(last)$('water').value=last.water;
+    var prev=null;S.recs.forEach(function(x){if(x.date<=d&&num(x.day)!=null&&(!prev||x.date>prev.date))prev=x});
+    if(prev){var diff=Math.round((new Date(d+'T00:00:00')-new Date(prev.date+'T00:00:00'))/864e5);$('day').value=num(prev.day)+diff}
+  }
+}
+function hint(id,cls,t){var e=$(id);e.className='hint'+(cls?' '+cls:'');e.textContent=t||''}
+function live(){
+  var r=readForm();var t=num(r.temp),o=num(r.spo2),sy=num(r.sys),h=num(r.hr);
+  hint('h-temp',t==null?'':(t>=38?'red':(t>=37.5||t<36?'amb':'ok')),t==null?'':(t>=38?'達 38°C：請立即聯絡醫療團隊':(t>=37.5?'偏高：一小時後再量一次':(t<36?'偏低：請重新量測':'未達警戒值'))));
+  hint('h-spo2',o==null?'':(o<=92?'red':(o<=94?'amb':'ok')),o==null?'':(o<=92?'血氧 92% 以下：請立即就醫':(o<=94?'血氧略低：休息 5 分鐘後重測':'血氧未達警戒值')));
+  hint('h-bp',sy==null?'':(sy<=90?'red':(sy<=100||sy>=180?'amb':'')),sy==null?'':(sy<=90?'收縮壓 90 以下：請立即就醫':(sy<=100?'收縮壓偏低：請重測':(sy>=180?'收縮壓偏高：休息後重測':''))));
+  hint('h-hr',h==null?'':(h>=130?'red':((h>=110||h<50)?'amb':'')),h==null?'':(h>=130?'心跳 130 以上：請立即就醫評估':((h>=110||h<50)?'心跳異常：休息後重測':'')));
+  var w=num(r.wt),b=w!=null?wtBase(r.date,r.id):null;
+  hint('h-wt',b&&(b.wt-w>=1.5||(b.wt-w)/b.wt>=0.02)?'amb':'',b&&(b.wt-w>=1.5||(b.wt-w)/b.wt>=0.02)?'比 '+b.date.slice(5)+' 少 '+(b.wt-w).toFixed(1)+' kg':'');
+  $('liveAlert').innerHTML=alertHtml(evaluate(r));
+}
+['temp','sys','dia','hr','spo2','wt','water','stoolN','painScore'].forEach(function(k){$(k).addEventListener('input',live)});
+$('date').addEventListener('change',loadSlot);
+
+$('btnSave').addEventListener('click',function(){
+  var r=readForm();
+  var filled=NUMS.concat(GRP,['note']).some(function(k){return k!=='day'&&r[k]!==''&&r[k]!=null});
+  if(!filled){toast('請至少填一個項目');return}
+  var bad='';
+  [['temp',30,45,'體溫'],['sys',40,280,'收縮壓'],['dia',20,200,'舒張壓'],['hr',20,250,'心跳'],['spo2',50,100,'血氧'],['wt',20,250,'體重'],['water',0,10000,'飲水量'],['stoolN',0,40,'水便次數'],['painScore',0,10,'疼痛程度']].forEach(function(c){var v=num(r[c[0]]);if(v!=null&&(v<c[1]||v>c[2]))bad=c[3]});
+  if(bad){toast(bad+' 數值看起來不對，請再確認');return}
+  var ev=evaluate(r);r.level=ev.level==='red'?'紅色警訊':(ev.level==='amb'?'留意':'正常');r.alert=ev.red.concat(ev.amb).join('；');
+  ls('hd_who',r.who);
+  var b=this;b.disabled=true;setSync('同步中…');
+  var okBox=ev.level==='ok'?'<div class="alert ok"><b>✓ 已儲存</b>已填的項目沒有觸發警訊。這不代表排除感染等問題，如果看起來明顯不舒服，仍請立即就醫。</div>':'<div class="alert ok"><b>✓ 已儲存</b></div>';
+  api('save',r,function(res){
+    b.disabled=false;formId=r.id;$('btnSave').textContent='更新這筆記錄';
+    if(!res.ok){
+      if(res.err==='PIN'){askPin('請重新輸入密碼');return}
+      var q=pending().filter(function(x){return x.id!==r.id});q.push(r);ls('hd_pending',JSON.stringify(q));
+      S.recs=S.recs.filter(function(x){return x.id!==r.id});S.recs.push(r);sortRecs();renderAll();setSync('未同步 '+q.length+' 筆');
+      modal('<div class="alert amb"><b>已暫存在這支手機，尚未上傳雲端</b>目前連不上網路。下次開啟或儲存時會自動補傳。</div>'+alertHtml(ev)+'<button class="btn sec" data-close="1">好</button>');return}
+    S.recs=res.recs;sortRecs();setSync(ON?'已同步到雲端 ✓':'已儲存 ✓');renderAll();flush();
+    modal(okBox+alertHtml(ev)+'<button class="btn sec" data-close="1">好</button>');
+  });
+});
+function pending(){try{return JSON.parse(ls('hd_pending')||'[]')||[]}catch(e){return[]}}
+function flush(){var q=pending();if(!q.length)return;api('save',q[0],function(res){if(!res.ok){setSync('未同步 '+q.length+' 筆');return}q.shift();ls('hd_pending',JSON.stringify(q));S.recs=res.recs;sortRecs();renderAll();setSync(q.length?'補傳中…':'已同步到雲端 ✓');flush()})}
+
+/* ---------- 顯示 ---------- */
+function sortRecs(){S.recs.sort(function(a,b){return a.date===b.date?(a.ts<b.ts?-1:1):(a.date<b.date?-1:1)})}
+function lvCls(r){return r.level==='紅色警訊'?'red':(r.level==='留意'?'amb':'ok')}
+function renderToday(){
+  var d=today(),a=S.recs.filter(function(x){return x.date===d});
+  var h;
+  if(!a.length)h='<div class="alert amb"><b>今天還沒有記錄</b>花 2 分鐘量一下、記一下吧。</div>';
+  else{var worst=a.some(function(x){return x.level==='紅色警訊'})?'red':(a.some(function(x){return x.level==='留意'})?'amb':'ok');
+    h='<div class="alert '+worst+'"><b>今天已記錄 '+a.length+' 筆</b>'+a.map(function(x){return esc(x.slot)+(x.temp?' '+esc(x.temp)+'°C':'')}).join('、')+'</div>'}
+  $('todayBox').innerHTML=h;
+}
+function streak(){var n=0,d=new Date();var set={};S.recs.forEach(function(x){set[x.date]=1});
+  for(var i=0;i<400;i++){var k=d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate());if(set[k])n++;else if(i>0)break;d.setDate(d.getDate()-1)}return n}
+function lastVal(k){for(var i=S.recs.length-1;i>=0;i--){if(num(S.recs[i][k])!=null)return S.recs[i][k]}return '–'}
+function renderStats(){
+  var ws=S.recs.filter(function(x){return num(x.wt)!=null});var dw='–';
+  if(ws.length>1){var x=num(ws[ws.length-1].wt)-num(ws[0].wt);dw=(x>0?'+':'')+x.toFixed(1)}
+  $('stats').innerHTML='<div><b>'+streak()+' 天</b><span>連續記錄</span></div><div><b>'+esc(lastVal('temp'))+'</b><span>最近體溫 °C</span></div><div><b>'+esc(lastVal('wt'))+'</b><span>最近體重 kg</span></div><div><b>'+dw+'</b><span>體重累計變化 kg</span></div>';
+}
+function chart(title,k,unit,lines){
+  var a=S.recs.filter(function(x){return num(x[k])!=null}).slice(-14);
+  if(a.length<2)return '<p class="mut">'+title+'：記錄滿 2 筆後顯示</p>';
+  var v=a.map(function(x){return num(x[k])});var mn=Math.min.apply(null,v),mx=Math.max.apply(null,v);
+  (lines||[]).forEach(function(l){mn=Math.min(mn,l[0]);mx=Math.max(mx,l[0])});
+  var p=(mx-mn)*0.15||1;mn-=p;mx+=p;var W=320,H=120,L=34,R=8,T=10,B=20;
+  var X=function(i){return L+(W-L-R)*i/(a.length-1)},Y=function(n){return T+(H-T-B)*(1-(n-mn)/(mx-mn))};
+  var s='<div style="font-weight:700;margin-top:10px">'+title+' <span class="mut">'+unit+'</span></div><svg class="ch" viewBox="0 0 '+W+' '+H+'" preserveAspectRatio="none">';
+  (lines||[]).forEach(function(l){s+='<line x1="'+L+'" x2="'+(W-R)+'" y1="'+Y(l[0])+'" y2="'+Y(l[0])+'" stroke="#b42318" stroke-dasharray="4 3" stroke-width="1"/><text x="'+(W-R)+'" y="'+(Y(l[0])-3)+'" font-size="9" fill="#b42318" text-anchor="end">'+l[1]+'</text>'});
+  s+='<text x="2" y="'+(Y(mx-p)+3)+'" font-size="10" fill="#5d716c">'+(mx-p).toFixed(1)+'</text><text x="2" y="'+(Y(mn+p)+3)+'" font-size="10" fill="#5d716c">'+(mn+p).toFixed(1)+'</text>';
+  s+='<polyline fill="none" stroke="#0f766e" stroke-width="2" points="'+v.map(function(n,i){return X(i).toFixed(1)+','+Y(n).toFixed(1)}).join(' ')+'"/>';
+  v.forEach(function(n,i){s+='<circle cx="'+X(i).toFixed(1)+'" cy="'+Y(n).toFixed(1)+'" r="3" fill="#0f766e"/>'});
+  s+='<text x="'+L+'" y="'+(H-4)+'" font-size="10" fill="#5d716c">'+a[0].date.slice(5)+'</text><text x="'+(W-R)+'" y="'+(H-4)+'" font-size="10" fill="#5d716c" text-anchor="end">'+a[a.length-1].date.slice(5)+'</text></svg>';
+  return s;
+}
+function line(r){
+  var p=[];if(r.temp)p.push('體溫 '+r.temp+'°C');if(r.sys||r.dia)p.push('血壓 '+(r.sys||'–')+'/'+(r.dia||'–'));if(r.hr)p.push('心跳 '+r.hr);if(r.spo2)p.push('血氧 '+r.spo2+'%');if(r.wt)p.push('體重 '+r.wt+'kg');if(r.water)p.push('飲水 '+r.water+'mL');
+  if(r.food)p.push('食量'+r.food);if(r.urine)p.push('排尿'+r.urine);if(r.ucolor)p.push('尿色'+r.ucolor);if(r.stool)p.push('大便'+r.stool);if(r.stoolN)p.push('水便'+r.stoolN+'次');if(r.jaundice)p.push('黃疸'+r.jaundice);if(r.drain)p.push('引流管'+r.drain);
+  if(r.pain==='有')p.push('疼痛'+(r.painLoc?'('+r.painLoc+')':'')+(r.painScore!==''&&r.painScore!=null?r.painScore+'分':''));
+  if(r.sym)p.push('症狀：'+r.sym);if(r.mood)p.push('精神'+r.mood);if(r.med)p.push(r.med);if(r.note)p.push('備註：'+r.note);if(r.who)p.push('紀錄人：'+r.who);
+  return p.join('｜');
+}
+function renderHist(){
+  var a=S.recs.slice().reverse().slice(0,60);
+  $('hist').innerHTML=a.length?a.map(function(r){return '<div class="hist"><div class="hd"><span>'+esc(r.date)+' '+esc(r.slot)+(r.day?' <span class="mut">第 '+esc(r.day)+' 天</span>':'')+'</span><span class="tag '+lvCls(r)+'">'+esc(r.level||'正常')+'</span></div><div class="bd">'+esc(line(r))+'</div><button class="lnk" data-edit="'+esc(r.id)+'">修改</button><button class="lnk" data-del="'+esc(r.id)+'">刪除</button></div>'}).join(''):'<p class="mut">還沒有記錄</p>';
+}
+function renderAll(){
+  renderToday();renderStats();renderHist();
+  $('charts').innerHTML=chart('體溫','temp','°C',[[38,'38°C']])+chart('血氧','spo2','%',[[92,'92%']])+chart('體重','wt','kg')+chart('心跳','hr','下/分')+chart('收縮壓','sys','mmHg');
+  $('drainBox').style.display=S.cfg.drain==='1'?'block':'none';
+  $('hdName').textContent=(S.cfg.name?S.cfg.name+'・':'')+today();
+  var p=(S.cfg.phone||'').replace(/[^0-9+#*]/g,''),c=$('callBtn');
+  if(p){c.style.display='block';c.href='tel:'+p;c.textContent='撥打醫療團隊 '+S.cfg.phone}else c.style.display='none';
+}
+$('hist').addEventListener('click',function(e){
+  var id=e.target.getAttribute('data-edit'),del=e.target.getAttribute('data-del');
+  if(id){var r=null;S.recs.forEach(function(x){if(x.id===id)r=x});if(!r)return;$('date').value=r.date;setG('slot',r.slot);fillForm(r);go('rec');window.scrollTo(0,0)}
+  if(del){modal('<h2 style="margin-top:0">確定刪除這筆記錄？</h2><p class="mut">刪除後 Google Sheet 上的那一列也會移除。</p><button class="btn red" id="okDel">刪除</button><div style="height:8px"></div><button class="btn sec" data-close="1">取消</button>');
+    $('okDel').onclick=function(){closeModal();setSync('同步中…');api('del',{id:del},function(res){if(!res.ok){toast('刪除失敗');return}S.recs=res.recs;sortRecs();setSync('已同步 ✓');renderAll()})}}
+});
+$('btnSum').addEventListener('click',function(){
+  var lim=new Date();lim.setDate(lim.getDate()-6);var k=lim.getFullYear()+'-'+pad(lim.getMonth()+1)+'-'+pad(lim.getDate());
+  var a=S.recs.filter(function(x){return x.date>=k});
+  var t='【每日健康記錄摘要】'+k+' ～ '+today()+'\n'+(a.length?a.map(function(r){return r.date.slice(5)+' '+r.slot+(r.level&&r.level!=='正常'?'〔'+r.level+'〕':'')+'：'+line(r)}).join('\n'):'這段期間沒有記錄');
+  modal('<h2 style="margin-top:0">近 7 天摘要</h2><textarea id="sumTxt" style="min-height:240px" readonly></textarea><div style="height:8px"></div><button class="btn" id="cp">複製文字</button><div style="height:8px"></div><button class="btn sec" data-close="1">關閉</button>');
+  $('sumTxt').value=t;
+  $('cp').onclick=function(){var x=$('sumTxt');x.focus();x.select();var done=function(){toast('已複製，可貼到 LINE')};
+    try{navigator.clipboard.writeText(t).then(done,function(){try{document.execCommand('copy');done()}catch(e){toast('請長按文字手動複製')}})}catch(e){try{document.execCommand('copy');done()}catch(e2){toast('請長按文字手動複製')}}};
+});
+
+/* ---------- 設定 ---------- */
+function fillCfg(){
+  var c=S.cfg;$('c-name').value=c.name||'';$('c-phone').value=c.phone||'';$('c-r1').value=c.r1||'08:00';$('c-r2').value=c.r2||'20:00';
+  $('c-emails').value=c.emails||'';$('c-missHour').value=c.missHour==null?'':String(c.missHour);$('c-pin').value=c.pin||'';
+  setG('c-alertMail',c.alertMail==='0'?'0':'1');setG('c-drain',c.drain==='1'?'1':'0');calLinks();
+  if(!ON){$('mailCard').style.display='none';$('pinCard').style.display='none'}
+  $('apiCard').style.display=LIVE?'none':'block';$('apiOff').style.display=REMOTE?'none':'block';$('apiOn').style.display=REMOTE?'block':'none';
+  if(S.sheet){$('sheetLink').style.display='block';$('sheetLink').href=S.sheet}
+}
+function calLinks(){
+  var h='';[['c-r1','早上'],['c-r2','晚上']].forEach(function(x){var v=$(x[0]).value;if(!v)return;
+    var d=today().replace(/-/g,''),hm=v.replace(':',''),e=new Date(2000,0,1,+v.slice(0,2),+v.slice(3,5)+10);
+    var u='https://calendar.google.com/calendar/render?action=TEMPLATE&text='+encodeURIComponent('記錄今日健康狀態（'+x[1]+'）')+'&dates='+d+'T'+hm+'00/'+d+'T'+pad(e.getHours())+pad(e.getMinutes())+'00&ctz=Asia/Taipei&recur='+encodeURIComponent('RRULE:FREQ=DAILY')+'&details='+encodeURIComponent('點這裡開始記錄：'+S.url);
+    h+='<a class="btn sec sm" style="margin-bottom:8px" target="_blank" rel="noopener" href="'+u+'">加到手機行事曆：每天 '+v+'（'+x[1]+'）</a>'});
+  $('calLinks').innerHTML=h;
+}
+$('c-r1').addEventListener('change',calLinks);$('c-r2').addEventListener('change',calLinks);
+$('btnCfg').addEventListener('click',function(){
+  var c={name:$('c-name').value.trim(),phone:$('c-phone').value.trim(),r1:$('c-r1').value,r2:$('c-r2').value,emails:$('c-emails').value.trim(),alertMail:getG('c-alertMail')||'1',drain:getG('c-drain')||'0',missHour:$('c-missHour').value,pin:$('c-pin').value.trim()};
+  var b=this;b.disabled=true;
+  api('cfg',c,function(res){b.disabled=false;if(!res.ok){toast('儲存失敗：'+(res.err||''));return}S.cfg=res.cfg||c;S.pin=c.pin;ls('hd_pin',c.pin);renderAll();calLinks();toast('設定已儲存')});
+});
+
+/* ---------- 導覽與啟動 ---------- */
+function go(p){document.querySelectorAll('.page').forEach(function(x){x.classList.toggle('on',x.id==='p-'+p)});document.querySelectorAll('nav button').forEach(function(x){x.classList.toggle('on',x.getAttribute('data-p')===p)})}
+document.querySelector('nav').addEventListener('click',function(e){var b=e.target.closest('button');if(b){go(b.getAttribute('data-p'));window.scrollTo(0,0)}});
+function askPin(msg){
+  modal('<h2 style="margin-top:0">請輸入開啟密碼</h2><p class="mut">'+(msg||'')+'</p><input type="password" inputmode="numeric" id="pinIn"><div style="height:10px"></div><button class="btn" id="pinOk">確定</button>');
+  $('pinOk').onclick=function(){S.pin=$('pinIn').value.trim();ls('hd_pin',S.pin);closeModal();init()};
+}
+function init(){
+  setSync('載入中…');
+  api('init',{},function(res){
+    var off=false;
+    if(!res.ok){
+      if(res.err==='PIN'){askPin(S.pin?'密碼不正確，請再試一次':'');return}
+      var c=null;if(REMOTE&&res.err==='NET'){try{c=JSON.parse(ls('hd_cache')||'null')}catch(e){}}
+      if(!c){setSync('連線失敗');toast(res.err==='NET'?'連不上雲端，請檢查網路或連線網址':'載入失敗：'+(res.err||''));fillCfg();return}
+      res={ok:true,recs:c.recs||[],cfg:c.cfg||{},sheet:c.sheet||''};off=true;
+    }
+    S.recs=res.recs||[];S.cfg=res.cfg||{};S.url=REMOTE?location.href.split('#')[0]:(res.url||'');S.sheet=res.sheet||'';
+    pending().forEach(function(p){S.recs=S.recs.filter(function(x){return x.id!==p.id});S.recs.push(p)});
+    sortRecs();
+    setSync(off?'離線：顯示上次資料':(ON?'已連線雲端 ✓':'未連接雲端'));
+    $('date').value=today();setG('slot',new Date().getHours()<15?'早上':'晚上');loadSlot();fillCfg();renderAll();flush();
+  });
+}
+if(!ON)$('demoBar').style.display='block';
+$('goConnect').addEventListener('click',function(){go('set');window.scrollTo(0,0)});
+$('btnApi').addEventListener('click',function(){
+  var u=$('c-api').value.trim();
+  if(!API_RE.test(u)){toast('網址格式不對：要以 https://script.google.com/macros/s/ 開頭、/exec 結尾');return}
+  ls('hd_api',u);ls('hd_cache','');location.reload();
+});
+$('btnUnlink').addEventListener('click',function(){
+  if(!confirm('中斷後這支裝置不會再同步，Google Sheet 上的資料不受影響。確定嗎？'))return;
+  ls('hd_api','');ls('hd_cache','');ls('hd_pin','');location.reload();
+});
+$('btnShare').addEventListener('click',function(){
+  var t=location.href.split('#')[0]+'#api='+encodeURIComponent(API);
+  try{navigator.clipboard.writeText(t).then(function(){toast('已複製，可貼到 LINE 傳給家人')},function(){prompt('請複製這個連結',t)})}catch(e){prompt('請複製這個連結',t)}
+});
+window.addEventListener('hashchange',function(){if(!LIVE&&/[#&]api=/.test(location.hash))location.reload()});
+if(!LIVE&&'serviceWorker' in navigator&&location.protocol==='https:'){navigator.serviceWorker.register('sw.js').catch(function(){})}
+S.pin=ls('hd_pin')||'';
+init();
+})();
+</script>
+</body>
+</html>
