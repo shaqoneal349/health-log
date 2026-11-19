@@ -70,6 +70,8 @@ svg.ch{width:100%;height:120px;display:block}
 .modal.on{display:flex}
 .modal .box{background:#fff;border-radius:16px 16px 0 0;padding:16px;width:100%;max-width:640px;max-height:88vh;overflow:auto}
 .mut{color:var(--mut);font-size:14px}
+#printArea{display:none}
+@media print{body{padding:0;background:#fff}body>*{display:none!important}body>#printArea{display:block!important;padding:0 6px;font-size:13px;line-height:1.45}#printArea h1{font-size:19px;margin:0 0 6px}#printArea h2{font-size:15px;margin:12px 0 4px;border-bottom:1px solid #999}#printArea table{border-collapse:collapse;width:100%}#printArea td{border:1px solid #bbb;padding:3px 6px;vertical-align:top}#printArea td:first-child{white-space:nowrap;width:1%}#printArea .pc{display:inline-block;width:49%;vertical-align:top}#printArea ol,#printArea ul{margin:4px 0;padding-left:20px}}
 .demo{background:#fff4dc;color:#7a4b00;font-size:14px;padding:8px 14px;text-align:center}
 ol.steps{padding-left:22px;margin:6px 0}ol.steps li{margin-bottom:6px}
 </style>
@@ -103,6 +105,8 @@ ol.steps{padding-left:22px;margin:6px 0}ol.steps li{margin-bottom:6px}
     <label class="f">體溫</label>
     <div class="unit"><input type="number" inputmode="decimal" step="0.1" id="temp" placeholder="36.5"><span>°C</span></div>
     <div class="hint" id="h-temp"></div>
+    <label class="f">量體溫前 4 小時內，有吃退燒藥或止痛藥嗎？</label>
+    <div class="chips" data-g="antipy" data-single="1"><button class="chip" data-v="無">沒有</button><button class="chip" data-v="有">有吃</button></div>
     <div class="row">
       <div><label class="f">收縮壓 (高)</label><div class="unit"><input type="number" inputmode="numeric" id="sys" placeholder="120"><span>mmHg</span></div></div>
       <div><label class="f">舒張壓 (低)</label><div class="unit"><input type="number" inputmode="numeric" id="dia" placeholder="80"><span>mmHg</span></div></div>
@@ -175,8 +179,14 @@ ol.steps{padding-left:22px;margin:6px 0}ol.steps li{margin-bottom:6px}
   <div class="card"><h2>趨勢圖 <small>近 14 筆</small></h2><div id="charts"></div></div>
   <div class="card">
     <h2>回診／給家人的摘要</h2>
-    <p class="mut">把近 7 天記錄整理成文字，可貼到 LINE 或回診時給醫師看。</p>
-    <button class="btn sec sm" id="btnSum">產生近 7 天摘要</button>
+    <p class="mut">整理成一頁重點：最高體溫、血壓心跳範圍、體重變化、警訊與處理結果、想問醫師的問題。可複製貼到 LINE，或列印／存成 PDF 帶去回診。</p>
+    <button class="btn sec sm" id="btnSum">產生摘要</button>
+  </div>
+  <div class="card">
+    <h2>想問醫師的問題 <small>回診時一起帶去</small></h2>
+    <textarea id="qs" placeholder="一行寫一個問題，想到就記。例：體溫幾度要直接去急診？"></textarea>
+    <div style="height:8px"></div>
+    <button class="btn sec sm" id="btnQs">儲存問題清單</button>
   </div>
   <div class="card"><h2>歷史記錄</h2><div id="hist"></div></div>
 </section>
@@ -204,6 +214,9 @@ ol.steps{padding-left:22px;margin:6px 0}ol.steps li{margin-bottom:6px}
       <li>疼痛達 7 分以上，或腹痛新出現、加劇</li>
       <li>幾乎吃不下，或一週內體重掉 1.5 公斤以上</li>
       <li>皮膚搔癢突然明顯加重、血尿或不明原因出血</li>
+      <li>體溫連續 3 次在 37.5°C 以上，或吃了退燒／止痛藥仍在 37.5°C 以上</li>
+      <li>食量連續兩天很少、連續 3 天沒有解便、連續兩天漏服藥物</li>
+      <li>心跳一天比一天快，同時血壓一天比一天低</li>
     </ul>
   </div>
   <a class="btn red" id="callBtn" target="_top" style="display:none;margin-bottom:8px"></a>
@@ -289,13 +302,14 @@ ol.steps{padding-left:22px;margin:6px 0}ol.steps li{margin-bottom:6px}
 </nav>
 <div class="toast" id="toast"></div>
 <div class="modal" id="modal"><div class="box" id="modalBox"></div></div>
+<div id="printArea"></div>
 
 <script>
 (function(){
 'use strict';
 var NUMS=['day','temp','sys','dia','hr','spo2','wt','water','stoolN','painScore'];
 var TXT=['who','day','temp','sys','dia','hr','spo2','wt','water','stoolN','painScore','note'];
-var GRP=['food','urine','ucolor','stool','jaundice','drain','pain','painLoc','sym','mood','med'];
+var GRP=['food','urine','ucolor','stool','jaundice','drain','pain','painLoc','sym','mood','med','antipy'];
 var S={recs:[],cfg:{},url:'',sheet:'',pin:''};
 var LIVE=(typeof google!=='undefined'&&google.script&&google.script.run);
 var $=function(id){return document.getElementById(id)};
@@ -377,6 +391,7 @@ function evaluate(r){
   var red=[],amb=[];var t=num(r.temp),o=num(r.spo2),sy=num(r.sys),di=num(r.dia),h=num(r.hr),w=num(r.wt),sn=num(r.stoolN),ps=num(r.painScore);
   var chill=has(r.sym,'畏寒發抖'),fever=t!=null&&t>=38;
   if(fever)red.push('體溫 '+t+'°C（達 38°C）：請立即聯絡醫療團隊，聯絡不上請到急診；不要先自行吃退燒藥再觀察');
+  else if(t!=null&&t>=37.5&&r.antipy==='有')amb.push('體溫 '+t+'°C，而且量測前 4 小時內吃過退燒或止痛藥：實際體溫可能更高，請當日聯絡醫療團隊並告知有服藥，一小時後再量一次');
   else if(t!=null&&t>=37.5)amb.push('體溫 '+t+'°C 偏高：一小時後再量一次，持續上升或不舒服請聯絡醫療團隊');
   else if(t!=null&&t<36)amb.push('體溫 '+t+'°C 偏低：請重測；若合併虛弱、畏寒請儘快就醫評估');
   if(chill)red.push('畏寒發抖：可能是感染，即使體溫未達 38°C 也請立即聯絡醫療團隊');
@@ -408,12 +423,40 @@ function evaluate(r){
   if(has(r.sym,'不明原因出血'))amb.push('不明原因出血：請聯絡醫療團隊；出血不止請到急診');
   if(ps!=null&&ps>=7)amb.push('疼痛 '+ps+' 分：請聯絡醫療團隊評估；突然劇痛請到急診');
   else if(has(r.sym,'腹痛新出現'))amb.push('腹痛新出現或加劇：請儘快聯絡醫療團隊');
+  var tr=trends(r);
   if(r.food==='幾乎無法進食')amb.push('幾乎無法進食：請儘快和醫療團隊討論營養與脫水風險');
-  else if(r.food==='很少')amb.push('食量很少：若連續兩天以上，請告知醫療團隊或營養師');
+  else if(r.food==='很少'&&!tr.food)amb.push('食量很少：若連續兩天以上，請告知醫療團隊或營養師');
+  if(tr.food)amb.push('食量已連續兩天很少或吃不下：請當日告知醫療團隊或營養師');
+  if(tr.stool)amb.push('已連續 3 天沒有解便：請告知醫療團隊');
+  if(tr.temp)amb.push('體溫已連續 3 次在 37.5°C 以上（'+tr.temp+'）：持續低燒請當日聯絡醫療團隊');
+  if(tr.vital)amb.push('心跳連續三天上升（'+tr.vital[0]+'）、收縮壓連續三天下降（'+tr.vital[1]+'）：可能是脫水或感染的早期變化，請當日聯絡醫療團隊');
+  if(tr.med)amb.push('連續兩天有漏服藥物：請告知醫療團隊，不要自行補吃雙倍劑量');
   if(has(r.sym,'皮膚搔癢加重'))amb.push('皮膚搔癢加重：若合併黃疸、茶色尿或灰白便，請當日聯絡醫療團隊');
   if(has(r.sym,'頭暈'))amb.push('頭暈：起身放慢，注意防跌');
   if(w!=null){var base=wtBase(r.date,r.id);if(base&&(base.wt-w>=1.5||(base.wt-w)/base.wt>=0.02))amb.push('體重比 '+base.date.slice(5)+' 少了 '+(base.wt-w).toFixed(1)+' kg：請告知醫療團隊或營養師')}
   return{level:red.length?'red':(amb.length?'amb':'ok'),red:red,amb:amb};
+}
+/* 連續趨勢：把這一筆和前幾天的記錄一起看 */
+function addDays(ds,n){var d=new Date(ds+'T00:00:00');d.setDate(d.getDate()+n);return d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate())}
+function trends(r){
+  var out={};if(!r.date)return out;
+  var prior=S.recs.filter(function(x){return x.id!==r.id&&(x.date<r.date||(x.date===r.date&&String(x.ts||'')<=String(r.ts||'')))});
+  var onDay=function(n){var d=addDays(r.date,n);return prior.filter(function(x){return x.date===d})};
+  var low=function(x){return x.food==='很少'||x.food==='幾乎無法進食'};
+  if(low(r)&&onDay(-1).some(low))out.food=1;
+  var noStool=function(a){var f=a.filter(function(x){return x.stool});return f.length>0&&f.every(function(x){return has(x.stool,'未解')})};
+  if(has(r.stool,'未解')&&noStool(onDay(0).concat([r]))&&noStool(onDay(-1))&&noStool(onDay(-2)))out.stool=1;
+  var t=num(r.temp);
+  if(t!=null&&t>=37.5&&t<38){
+    var lim=addDays(r.date,-2);
+    var pt=prior.filter(function(x){return num(x.temp)!=null&&x.date>=lim}).slice(-2);
+    if(pt.length===2&&pt.every(function(x){return num(x.temp)>=37.5}))out.temp=pt.map(function(x){return x.temp}).concat([r.temp]).join(' → ');
+  }
+  var dayVal=function(n,k){var a=(n===0?onDay(0).concat([r]):onDay(n)).filter(function(x){return num(x[k])!=null});return a.length?num(a[a.length-1][k]):null};
+  var h=[dayVal(-2,'hr'),dayVal(-1,'hr'),dayVal(0,'hr')],s=[dayVal(-2,'sys'),dayVal(-1,'sys'),dayVal(0,'sys')];
+  if(num(r.hr)!=null&&num(r.sys)!=null&&h[0]!=null&&h[1]!=null&&s[0]!=null&&s[1]!=null&&h[0]<h[1]&&h[1]<h[2]&&h[2]-h[0]>=15&&s[0]>s[1]&&s[1]>s[2]&&s[0]-s[2]>=15)out.vital=[h.join(' → '),s.join(' → ')];
+  if(r.med==='有漏服'&&onDay(-1).some(function(x){return x.med==='有漏服'}))out.med=1;
+  return out;
 }
 function wtBase(date,id){ // 7 天內最早一筆有體重的記錄
   var lim=new Date(date+'T00:00:00');lim.setDate(lim.getDate()-7);var best=null;
@@ -437,6 +480,7 @@ function readForm(){
   GRP.forEach(function(k){r[k]=getG(k)});
   if(r.pain!=='有'){r.painLoc='';r.painScore=''}
   if(S.cfg.drain!=='1')r.drain='';
+  r.action='';S.recs.forEach(function(x){if(x.id===r.id)r.action=x.action||''});
   return r;
 }
 var formId='';
@@ -463,7 +507,8 @@ function loadSlot(){
 function hint(id,cls,t){var e=$(id);e.className='hint'+(cls?' '+cls:'');e.textContent=t||''}
 function live(){
   var r=readForm();var t=num(r.temp),o=num(r.spo2),sy=num(r.sys),h=num(r.hr);
-  hint('h-temp',t==null?'':(t>=38?'red':(t>=37.5||t<36?'amb':'ok')),t==null?'':(t>=38?'達 38°C：請立即聯絡醫療團隊':(t>=37.5?'偏高：一小時後再量一次':(t<36?'偏低：請重新量測':'未達警戒值'))));
+  var ap=r.antipy==='有';
+  hint('h-temp',t==null?'':(t>=38?'red':(t>=37.5||t<36||ap?'amb':'ok')),t==null?'':(t>=38?'達 38°C：請立即聯絡醫療團隊':(t>=37.5?'偏高：一小時後再量一次':(t<36?'偏低：請重新量測':(ap?'未達警戒值，但退燒／止痛藥可能把體溫壓低，藥效過後請再量一次':'未達警戒值')))));
   hint('h-spo2',o==null?'':(o<=92?'red':(o<=94?'amb':'ok')),o==null?'':(o<=92?'血氧 92% 以下：請立即就醫':(o<=94?'血氧略低：休息 5 分鐘後重測':'血氧未達警戒值')));
   hint('h-bp',sy==null?'':(sy<=90?'red':(sy<=100||sy>=180?'amb':'')),sy==null?'':(sy<=90?'收縮壓 90 以下：請立即就醫':(sy<=100?'收縮壓偏低：請重測':(sy>=180?'收縮壓偏高：休息後重測':''))));
   hint('h-hr',h==null?'':(h>=130?'red':((h>=110||h<50)?'amb':'')),h==null?'':(h>=130?'心跳 130 以上：請立即就醫評估':((h>=110||h<50)?'心跳異常：休息後重測':'')));
@@ -493,7 +538,8 @@ $('btnSave').addEventListener('click',function(){
       S.recs=S.recs.filter(function(x){return x.id!==r.id});S.recs.push(r);sortRecs();renderAll();setSync('未同步 '+q.length+' 筆');
       modal('<div class="alert amb"><b>已暫存在這支手機，尚未上傳雲端</b>目前連不上網路。下次開啟或儲存時會自動補傳。</div>'+alertHtml(ev)+'<button class="btn sec" data-close="1">好</button>');return}
     S.recs=res.recs;sortRecs();setSync(ON?'已同步到雲端 ✓':'已儲存 ✓');renderAll();flush();
-    modal(okBox+alertHtml(ev)+'<button class="btn sec" data-close="1">好</button>');
+    modal(okBox+alertHtml(ev)+(ev.level!=='ok'?'<button class="btn sm" id="actNow" style="margin-bottom:8px">記錄處理結果</button><p class="mut">聯絡醫療團隊、就醫或複測之後，回來記一下結果，家人和醫師才知道後來怎麼了。</p>':'')+'<button class="btn sec" data-close="1">好</button>');
+    if($('actNow'))$('actNow').onclick=function(){askAction(r.id)};
   });
 });
 function pending(){try{return JSON.parse(ls('hd_pending')||'[]')||[]}catch(e){return[]}}
@@ -518,8 +564,8 @@ function renderStats(){
   if(ws.length>1){var x=num(ws[ws.length-1].wt)-num(ws[0].wt);dw=(x>0?'+':'')+x.toFixed(1)}
   $('stats').innerHTML='<div><b>'+streak()+' 天</b><span>連續記錄</span></div><div><b>'+esc(lastVal('temp'))+'</b><span>最近體溫 °C</span></div><div><b>'+esc(lastVal('wt'))+'</b><span>最近體重 kg</span></div><div><b>'+dw+'</b><span>體重累計變化 kg</span></div>';
 }
-function chart(title,k,unit,lines){
-  var a=S.recs.filter(function(x){return num(x[k])!=null}).slice(-14);
+function chart(title,k,unit,lines,src){
+  var a=(src||S.recs).filter(function(x){return num(x[k])!=null});if(!src)a=a.slice(-14);
   if(a.length<2)return '<p class="mut">'+title+'：記錄滿 2 筆後顯示</p>';
   var v=a.map(function(x){return num(x[k])});var mn=Math.min.apply(null,v),mx=Math.max.apply(null,v);
   (lines||[]).forEach(function(l){mn=Math.min(mn,l[0]);mx=Math.max(mx,l[0])});
@@ -534,7 +580,7 @@ function chart(title,k,unit,lines){
   return s;
 }
 function line(r){
-  var p=[];if(r.temp)p.push('體溫 '+r.temp+'°C');if(r.sys||r.dia)p.push('血壓 '+(r.sys||'–')+'/'+(r.dia||'–'));if(r.hr)p.push('心跳 '+r.hr);if(r.spo2)p.push('血氧 '+r.spo2+'%');if(r.wt)p.push('體重 '+r.wt+'kg');if(r.water)p.push('飲水 '+r.water+'mL');
+  var p=[];if(r.temp)p.push('體溫 '+r.temp+'°C');if(r.antipy==='有')p.push('量前 4 小時內有吃退燒／止痛藥');if(r.sys||r.dia)p.push('血壓 '+(r.sys||'–')+'/'+(r.dia||'–'));if(r.hr)p.push('心跳 '+r.hr);if(r.spo2)p.push('血氧 '+r.spo2+'%');if(r.wt)p.push('體重 '+r.wt+'kg');if(r.water)p.push('飲水 '+r.water+'mL');
   if(r.food)p.push('食量'+r.food);if(r.urine)p.push('排尿'+r.urine);if(r.ucolor)p.push('尿色'+r.ucolor);if(r.stool)p.push('大便'+r.stool);if(r.stoolN)p.push('水便'+r.stoolN+'次');if(r.jaundice)p.push('黃疸'+r.jaundice);if(r.drain)p.push('引流管'+r.drain);
   if(r.pain==='有')p.push('疼痛'+(r.painLoc?'('+r.painLoc+')':'')+(r.painScore!==''&&r.painScore!=null?r.painScore+'分':''));
   if(r.sym)p.push('症狀：'+r.sym);if(r.mood)p.push('精神'+r.mood);if(r.med)p.push(r.med);if(r.note)p.push('備註：'+r.note);if(r.who)p.push('紀錄人：'+r.who);
@@ -542,7 +588,7 @@ function line(r){
 }
 function renderHist(){
   var a=S.recs.slice().reverse().slice(0,60);
-  $('hist').innerHTML=a.length?a.map(function(r){return '<div class="hist"><div class="hd"><span>'+esc(r.date)+' '+esc(r.slot)+(r.day?' <span class="mut">第 '+esc(r.day)+' 天</span>':'')+'</span><span class="tag '+lvCls(r)+'">'+esc(r.level||'正常')+'</span></div><div class="bd">'+esc(line(r))+'</div><button class="lnk" data-edit="'+esc(r.id)+'">修改</button><button class="lnk" data-del="'+esc(r.id)+'">刪除</button></div>'}).join(''):'<p class="mut">還沒有記錄</p>';
+  $('hist').innerHTML=a.length?a.map(function(r){return '<div class="hist"><div class="hd"><span>'+esc(r.date)+' '+esc(r.slot)+(r.day?' <span class="mut">第 '+esc(r.day)+' 天</span>':'')+'</span><span class="tag '+lvCls(r)+'">'+esc(r.level||'正常')+'</span></div><div class="bd">'+esc(line(r))+'</div>'+(r.level&&r.level!=='正常'?'<div class="bd" style="color:var(--ink)">處理結果：'+esc(r.action||'尚未記錄')+'</div><button class="lnk" data-act="'+esc(r.id)+'">記錄處理結果</button>':'')+'<button class="lnk" data-edit="'+esc(r.id)+'">修改</button><button class="lnk" data-del="'+esc(r.id)+'">刪除</button></div>'}).join(''):'<p class="mut">還沒有記錄</p>';
 }
 function renderAll(){
   renderToday();renderStats();renderHist();
@@ -553,25 +599,111 @@ function renderAll(){
   if(p){c.style.display='block';c.href='tel:'+p;c.textContent='撥打醫療團隊 '+S.cfg.phone}else c.style.display='none';
 }
 $('hist').addEventListener('click',function(e){
-  var id=e.target.getAttribute('data-edit'),del=e.target.getAttribute('data-del');
+  var id=e.target.getAttribute('data-edit'),del=e.target.getAttribute('data-del'),act=e.target.getAttribute('data-act');
+  if(act)askAction(act);
   if(id){var r=null;S.recs.forEach(function(x){if(x.id===id)r=x});if(!r)return;$('date').value=r.date;setG('slot',r.slot);fillForm(r);go('rec');window.scrollTo(0,0)}
   if(del){modal('<h2 style="margin-top:0">確定刪除這筆記錄？</h2><p class="mut">刪除後 Google Sheet 上的那一列也會移除。</p><button class="btn red" id="okDel">刪除</button><div style="height:8px"></div><button class="btn sec" data-close="1">取消</button>');
     $('okDel').onclick=function(){closeModal();setSync('同步中…');api('del',{id:del},function(res){if(!res.ok){toast('刪除失敗');return}S.recs=res.recs;sortRecs();setSync('已同步 ✓');renderAll()})}}
 });
-$('btnSum').addEventListener('click',function(){
-  var lim=new Date();lim.setDate(lim.getDate()-6);var k=lim.getFullYear()+'-'+pad(lim.getMonth()+1)+'-'+pad(lim.getDate());
-  var a=S.recs.filter(function(x){return x.date>=k});
-  var t='【每日健康記錄摘要】'+k+' ～ '+today()+'\n'+(a.length?a.map(function(r){return r.date.slice(5)+' '+r.slot+(r.level&&r.level!=='正常'?'〔'+r.level+'〕':'')+'：'+line(r)}).join('\n'):'這段期間沒有記錄');
-  modal('<h2 style="margin-top:0">近 7 天摘要</h2><textarea id="sumTxt" style="min-height:240px" readonly></textarea><div style="height:8px"></div><button class="btn" id="cp">複製文字</button><div style="height:8px"></div><button class="btn sec" data-close="1">關閉</button>');
-  $('sumTxt').value=t;
+/* ---------- 處理結果 ---------- */
+function askAction(id){
+  var r=null;S.recs.forEach(function(x){if(x.id===id)r=x});if(!r)return;
+  modal('<h2 style="margin-top:0">處理結果</h2><p class="mut">'+esc(r.date)+' '+esc(r.slot)+'：'+esc(r.alert||'')+'</p>'+(r.action?'<p class="mut">目前記錄：'+esc(r.action)+'</p>':'')+
+    '<div class="chips" data-g="act" data-single="1"><button class="chip" data-v="已電話聯絡醫療團隊">已電話聯絡醫療團隊</button><button class="chip" data-v="已到急診或就醫">已到急診／就醫</button><button class="chip" data-v="醫療團隊指示在家觀察">醫療團隊指示在家觀察</button><button class="chip" data-v="複測後已恢復正常">複測後已恢復正常</button><button class="chip" data-v="尚未處理">尚未處理</button></div>'+
+    '<label class="f">補充 <small>(選填，例如醫師怎麼說)</small></label><input type="text" id="actNote" maxlength="120"><div style="height:10px"></div><button class="btn" id="actOk">儲存</button><div style="height:8px"></div><button class="btn sec" data-close="1">取消</button>');
+  $('actOk').onclick=function(){
+    var v=getG('act');if(!v){toast('請選一個處理結果');return}
+    var n=$('actNote').value.trim(),w=ls('hd_who')||'';
+    var c={};Object.keys(r).forEach(function(k){c[k]=r[k]});
+    c.action=v+(n?'：'+n:'')+'（'+today().slice(5)+' '+nowHM()+(w?' '+w:'')+'）';
+    var b=this;b.disabled=true;setSync('同步中…');
+    api('save',c,function(res){
+      if(!res.ok){
+        if(res.err==='PIN'){askPin('請重新輸入密碼');return}
+        var q=pending().filter(function(x){return x.id!==c.id});q.push(c);ls('hd_pending',JSON.stringify(q));
+        S.recs=S.recs.filter(function(x){return x.id!==c.id});S.recs.push(c);sortRecs();renderAll();setSync('未同步 '+q.length+' 筆');closeModal();toast('已暫存在手機，連上網路後補傳');return}
+      S.recs=res.recs;sortRecs();setSync(ON?'已同步到雲端 ✓':'已儲存 ✓');renderAll();closeModal();toast('處理結果已記錄');
+    });
+  };
+}
+
+/* ---------- 回診摘要 ---------- */
+function summary(n){
+  var to=today(),from=addDays(to,-(n-1));
+  var a=S.recs.filter(function(x){return x.date>=from&&x.date<=to});
+  var kp=[],md=function(r){return r.date.slice(5)+' '+r.slot};
+  var vals=function(k){return a.filter(function(x){return num(x[k])!=null}).map(function(x){return{v:num(x[k]),r:x}})};
+  var rng=function(k){var v=vals(k).map(function(x){return x.v});return v.length?Math.min.apply(null,v)+'–'+Math.max.apply(null,v):''};
+  var daysOf=function(f){var s={};a.forEach(function(x){if(f(x))s[x.date]=1});return Object.keys(s).length};
+  // 漏記：從第一筆記錄那天起算，不含今天
+  var m1=0,m2=0,start=S.recs.length&&S.recs[0].date>from?S.recs[0].date:from;
+  if(S.recs.length)for(var d=start;d<to;d=addDays(d,1)){
+    if(!a.some(function(x){return x.date===d&&x.slot==='早上'}))m1++;
+    if(!a.some(function(x){return x.date===d&&x.slot==='晚上'}))m2++;
+  }
+  kp.push(['記錄',a.length+' 筆；早晚固定記錄漏 '+(m1+m2)+' 次'+(m1+m2?'（早上 '+m1+'、晚上 '+m2+'）':'')]);
+  var tv=vals('temp');
+  if(tv.length){var mx=tv[0];tv.forEach(function(x){if(x.v>mx.v)mx=x});
+    var ap=tv.filter(function(x){return x.r.antipy==='有'}).length;
+    kp.push(['體溫','最高 '+mx.v+'°C（'+md(mx.r)+'）；38°C 以上 '+tv.filter(function(x){return x.v>=38}).length+' 次、37.5–37.9°C '+tv.filter(function(x){return x.v>=37.5&&x.v<38}).length+' 次'+(ap?'；其中 '+ap+' 次量測前有吃退燒／止痛藥':'')])}
+  if(rng('sys'))kp.push(['血壓','收縮壓 '+rng('sys')+(rng('dia')?'／舒張壓 '+rng('dia'):'')]);
+  if(rng('hr'))kp.push(['心跳',rng('hr')+' 下/分']);
+  var ov=vals('spo2');if(ov.length){var lo=ov[0];ov.forEach(function(x){if(x.v<lo.v)lo=x});kp.push(['血氧','最低 '+lo.v+'%（'+md(lo.r)+'）'])}
+  var wv=vals('wt');if(wv.length){var dw=wv[wv.length-1].v-wv[0].v;kp.push(['體重',wv.length>1?wv[0].v+' → '+wv[wv.length-1].v+' kg（'+(dw>0?'+':'')+dw.toFixed(1)+'）':wv[0].v+' kg'])}
+  var wd={};vals('water').forEach(function(x){wd[x.r.date]=Math.max(wd[x.r.date]||0,x.v)});var wk=Object.keys(wd);
+  if(wk.length)kp.push(['飲水','日平均約 '+Math.round(wk.reduce(function(s,k){return s+wd[k]},0)/wk.length)+' mL（'+wk.length+' 天有記）']);
+  var o=[],c;
+  if((c=daysOf(function(x){return x.food==='很少'||x.food==='幾乎無法進食'})))o.push('食量很少或吃不下 '+c+' 天');
+  if((c=daysOf(function(x){return has(x.stool,'未解')})))o.push('未解便 '+c+' 天');
+  if((c=daysOf(function(x){return has(x.stool,'腹瀉')})))o.push('腹瀉 '+c+' 天');
+  if((c=daysOf(function(x){return x.med==='有漏服'})))o.push('漏服藥物 '+c+' 天');
+  if((c=daysOf(function(x){return x.jaundice==='加深'})))o.push('黃疸加深 '+c+' 天');
+  var pv=vals('painScore');if(pv.length)o.push('疼痛最高 '+Math.max.apply(null,pv.map(function(x){return x.v}))+' 分');
+  if(o.length)kp.push(['其他',o.join('、')]);
+  var al=a.filter(function(x){return x.level&&x.level!=='正常'});
+  kp.push(['警訊','紅色 '+al.filter(function(x){return x.level==='紅色警訊'}).length+' 次、需留意 '+al.filter(function(x){return x.level!=='紅色警訊'}).length+' 次']);
+  var qs=String(S.cfg.qs||'').split('\n').map(function(x){return x.trim()}).filter(function(x){return x});
+  var title='每日健康記錄摘要'+(S.cfg.name?'｜'+S.cfg.name:''),range=from+' ～ '+to+'（'+n+' 天）';
+  var t='【'+title+'】'+range+'\n';
+  if(!a.length)t+='這段期間沒有記錄';
+  else{
+    t+='\n■ 重點\n'+kp.map(function(k){return '・'+k[0]+'：'+k[1]}).join('\n');
+    if(al.length)t+='\n\n■ 警訊與處理\n'+al.map(function(r){return '・'+md(r)+'〔'+r.level+'〕'+(r.alert||'')+'\n　處理：'+(r.action||'未記錄')}).join('\n');
+    if(qs.length)t+='\n\n■ 想問醫師的問題\n'+qs.map(function(q,i){return (i+1)+'. '+q}).join('\n');
+    t+='\n\n■ 逐筆記錄\n'+a.map(function(r){return md(r)+(r.level&&r.level!=='正常'?'〔'+r.level+'〕':'')+'：'+line(r)}).join('\n');
+  }
+  var h='<h1>'+esc(title)+'</h1><div>'+esc(range)+'　列印日 '+to+'</div>';
+  if(!a.length)h+='<p>這段期間沒有記錄</p>';
+  else{
+    h+='<h2>重點</h2><table>'+kp.map(function(k){return '<tr><td>'+esc(k[0])+'</td><td>'+esc(k[1])+'</td></tr>'}).join('')+'</table>';
+    if(al.length)h+='<h2>警訊與處理</h2><table>'+al.map(function(r){return '<tr><td>'+esc(md(r))+'<br>'+esc(r.level)+'</td><td>'+esc(r.alert||'')+'<br><b>處理：</b>'+esc(r.action||'未記錄')+'</td></tr>'}).join('')+'</table>';
+    if(qs.length)h+='<h2>想問醫師的問題</h2><ol>'+qs.map(function(q){return '<li>'+esc(q)+'</li>'}).join('')+'</ol>';
+    h+='<h2>趨勢圖</h2>'+[['體溫','temp','°C',[[38,'38°C']]],['心跳','hr','下/分'],['收縮壓','sys','mmHg'],['體重','wt','kg']].map(function(c){return '<div class="pc">'+chart(c[0],c[1],c[2],c[3],a)+'</div>'}).join('');
+    h+='<h2>逐筆記錄</h2><table>'+a.map(function(r){return '<tr><td>'+esc(md(r))+'</td><td>'+esc(line(r))+'</td></tr>'}).join('')+'</table>';
+  }
+  h+='<p style="font-size:11px;color:#555">由家屬居家記錄整理，數值為家用儀器量測，僅供醫療團隊參考。</p>';
+  return{text:t,html:h};
+}
+function showSum(n){
+  var s=summary(n);
+  modal('<h2 style="margin-top:0">回診摘要</h2><div class="chips" style="margin-bottom:10px">'+[7,14,30].map(function(d){return '<button class="chip'+(d===n?' on':'')+'" data-sum="'+d+'">近 '+d+' 天</button>'}).join('')+'</div><textarea id="sumTxt" style="min-height:260px" readonly></textarea><div style="height:8px"></div><button class="btn" id="cp">複製文字</button><div style="height:8px"></div><button class="btn sec" id="pr">列印／存成 PDF</button><div style="height:8px"></div><button class="btn sec" data-close="1">關閉</button>');
+  $('sumTxt').value=s.text;
+  $('pr').onclick=function(){$('printArea').innerHTML=s.html;window.print()};
   $('cp').onclick=function(){var x=$('sumTxt');x.focus();x.select();var done=function(){toast('已複製，可貼到 LINE')};
-    try{navigator.clipboard.writeText(t).then(done,function(){try{document.execCommand('copy');done()}catch(e){toast('請長按文字手動複製')}})}catch(e){try{document.execCommand('copy');done()}catch(e2){toast('請長按文字手動複製')}}};
+    try{navigator.clipboard.writeText(s.text).then(done,function(){try{document.execCommand('copy');done()}catch(e){toast('請長按文字手動複製')}})}catch(e){try{document.execCommand('copy');done()}catch(e2){toast('請長按文字手動複製')}}};
+}
+$('btnSum').addEventListener('click',function(){showSum(7)});
+$('modalBox').addEventListener('click',function(e){var d=e.target.getAttribute('data-sum');if(d)showSum(parseInt(d,10))});
+$('btnQs').addEventListener('click',function(){
+  var c={};Object.keys(S.cfg).forEach(function(k){c[k]=S.cfg[k]});c.qs=$('qs').value.trim();
+  var b=this;b.disabled=true;
+  api('cfg',c,function(res){b.disabled=false;if(!res.ok){toast(res.err==='NET'?'連不上網路，請稍後再存':'儲存失敗：'+(res.err||''));return}S.cfg=res.cfg||c;toast('問題清單已儲存')});
 });
 
 /* ---------- 設定 ---------- */
 function fillCfg(){
   var c=S.cfg;$('c-name').value=c.name||'';$('c-phone').value=c.phone||'';$('c-r1').value=c.r1||'08:00';$('c-r2').value=c.r2||'20:00';
-  $('c-emails').value=c.emails||'';$('c-dl1').value=c.dl1||'10:30';$('c-dl2').value=c.dl2||'21:00';setG('c-missOn',c.missOn==='0'?'0':'1');$('remCard').style.display=ON?'block':'none';$('c-pin').value=c.pin||'';
+  $('qs').value=c.qs||'';$('c-emails').value=c.emails||'';$('c-dl1').value=c.dl1||'10:30';$('c-dl2').value=c.dl2||'21:00';setG('c-missOn',c.missOn==='0'?'0':'1');$('remCard').style.display=ON?'block':'none';$('c-pin').value=c.pin||'';
   setG('c-alertMail',c.alertMail==='0'?'0':'1');setG('c-drain',c.drain==='1'?'1':'0');calLinks();
   if(!ON){$('mailCard').style.display='none';$('pinCard').style.display='none'}
   $('apiCard').style.display=LIVE?'none':'block';$('apiOff').style.display=REMOTE?'none':'block';$('apiOn').style.display=REMOTE?'block':'none';
@@ -586,7 +718,7 @@ function calLinks(){
 }
 $('c-r1').addEventListener('change',calLinks);$('c-r2').addEventListener('change',calLinks);
 $('btnCfg').addEventListener('click',function(){
-  var c={name:$('c-name').value.trim(),phone:$('c-phone').value.trim(),r1:$('c-r1').value,r2:$('c-r2').value,emails:$('c-emails').value.trim(),alertMail:getG('c-alertMail')||'1',drain:getG('c-drain')||'0',missOn:getG('c-missOn')||'1',dl1:$('c-dl1').value||'10:30',dl2:$('c-dl2').value||'21:00',pin:$('c-pin').value.trim()};
+  var c={name:$('c-name').value.trim(),phone:$('c-phone').value.trim(),r1:$('c-r1').value,r2:$('c-r2').value,emails:$('c-emails').value.trim(),alertMail:getG('c-alertMail')||'1',drain:getG('c-drain')||'0',missOn:getG('c-missOn')||'1',dl1:$('c-dl1').value||'10:30',dl2:$('c-dl2').value||'21:00',qs:S.cfg.qs||'',pin:$('c-pin').value.trim()};
   var b=this;b.disabled=true;
   api('cfg',c,function(res){b.disabled=false;if(!res.ok){toast('儲存失敗：'+(res.err||''));return}S.cfg=res.cfg||c;S.pin=c.pin;ls('hd_pin',c.pin);renderAll();calLinks();toast('設定已儲存')});
 });
