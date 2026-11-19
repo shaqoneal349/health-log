@@ -1,5 +1,5 @@
 // 只快取 App 本身的畫面檔案；健康資料不經過這裡。改了任何檔案後把版號 +1。
-var CACHE = 'health-log-v3';
+var CACHE = 'health-log-v4';
 var FILES = ['./', 'index.html', 'manifest.webmanifest', 'icon-192.png', 'icon-512.png'];
 
 self.addEventListener('install', function (e) {
